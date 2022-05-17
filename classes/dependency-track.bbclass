@@ -49,13 +49,15 @@ python do_dependencytrack_collect() {
     sbom = read_sbom(d)
 
     # update it with the new package info
-    for cpe in oe.cve_check.get_cpe_ids(name, version):
+    names = name.split()
+    for index, cpe in enumerate(oe.cve_check.get_cpe_ids(name, version)):
         bb.debug(2, f"Collecting pagkage {name}@{version} ({cpe})")
-        sbom["components"].append({
-            "name": name,
-            "version": version,
-            "cpe": cpe
-        })
+        if not next((c for c in sbom["components"] if c["cpe"] == cpe), None):
+            sbom["components"].append({
+                "name": names[index],
+                "version": version,
+                "cpe": cpe
+            })
 
     # write it back to the deploy directory
     write_sbom(d, sbom)
