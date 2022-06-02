@@ -11,6 +11,9 @@ DEPENDENCYTRACK_SBOM ??= "${DEPENDENCYTRACK_DIR}/bom.json"
 DEPENDENCYTRACK_TMP ??= "${TMPDIR}/dependency-track"
 DEPENDENCYTRACK_LOCK ??= "${DEPENDENCYTRACK_TMP}/bom.lock"
 
+# Set DEPENDENCYTRACK_UPLOAD to False if you want to control the upload in other
+# steps.
+DEPENDENCYTRACK_UPLOAD ??= "True"
 DEPENDENCYTRACK_PROJECT ??= ""
 DEPENDENCYTRACK_API_URL ??= "http://localhost:8081/api"
 DEPENDENCYTRACK_API_KEY ??= ""
@@ -74,6 +77,10 @@ python do_dependencytrack_upload () {
     import urllib
     from pathlib import Path
 
+    dt_upload = bb.utils.to_boolean(d.getVar('DEPENDENCYTRACK_UPLOAD'))
+    if not dt_upload:
+        return
+
     sbom_path = d.getVar("DEPENDENCYTRACK_SBOM")
     dt_project = d.getVar("DEPENDENCYTRACK_PROJECT")
     dt_url = f"{d.getVar('DEPENDENCYTRACK_API_URL')}/v1/bom"
@@ -86,7 +93,7 @@ python do_dependencytrack_upload () {
         "bom": base64.b64encode(sbom.encode()).decode('ascii')
     }).encode()
     bb.debug(2, f"Uploading SBOM to project {dt_project} at {dt_url}")
-    
+
     headers = {
         "Content-Type": "application/json",
         "X-API-Key": d.getVar("DEPENDENCYTRACK_API_KEY")
@@ -96,7 +103,7 @@ python do_dependencytrack_upload () {
         data=payload,
         headers=headers,
         method="PUT")
-    
+
     try:
         urllib.request.urlopen(req)
     except urllib.error.HTTPError as e:
