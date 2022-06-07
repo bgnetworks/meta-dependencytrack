@@ -18,6 +18,8 @@ DEPENDENCYTRACK_PROJECT ??= ""
 DEPENDENCYTRACK_API_URL ??= "http://localhost:8081/api"
 DEPENDENCYTRACK_API_KEY ??= ""
 
+DT_LICENSE_CONVERSION_MAP ??= '{ "GPLv2+" : "GPL-2.0-or-later", "GPLv2" : "GPL-2.0", "LGPLv2" : "LGPL-2.0", "LGPLv2+" : "LGPL-2.0-or-later", "LGPLv2.1+" : "LGPL-2.1-or-later", "LGPLv2.1" : "LGPL-2.1"}'
+
 python do_dependencytrack_init() {
     import uuid
     from datetime import datetime
@@ -56,11 +58,15 @@ python do_dependencytrack_collect() {
     for index, cpe in enumerate(oe.cve_check.get_cpe_ids(name, version)):
         bb.debug(2, f"Collecting pagkage {name}@{version} ({cpe})")
         if not next((c for c in sbom["components"] if c["cpe"] == cpe), None):
-            sbom["components"].append({
+            component_json = {
                 "name": names[index],
                 "version": version,
-                "cpe": cpe
-            })
+                "cpe": cpe,
+            }
+            license_json = get_licenses(d)
+            if license_json:
+                component_json["licenses"] = license_json
+            sbom["components"].append(component_json)
 
     # write it back to the deploy directory
     write_sbom(d, sbom)
@@ -127,3 +133,42 @@ def write_sbom(d, sbom):
     Path(d.getVar("DEPENDENCYTRACK_SBOM")).write_text(
         json.dumps(sbom, indent=2)
     )
+
+def get_licenses(d) :
+    from pathlib import Path
+    import json
+    license_expression = d.getVar("LICENSE")
+    if license_expression:
+        license_json = []
+        licenses = license_expression.replace("|", "").replace("&", "").split()
+        for license in licenses:
+            license_conversion_map = json.loads(d.getVar('DT_LICENSE_CONVERSION_MAP'))
+            converted_license = None
+            try:
+                converted_license =  license_conversion_map[license]
+            except Exception as e:
+                    pass
+            if not converted_license:
+                converted_license = license
+            # Search for the license in COMMON_LICENSE_DIR and LICENSE_PATH
+            for directory in [d.getVar('COMMON_LICENSE_DIR')] + (d.getVar('LICENSE_PATH') or '').split():
+                try:
+                    with (Path(directory) / converted_license).open(errors="replace") as f:
+                        extractedText = f.read()
+                        license_data = {
+                            "license": {
+                                "name" : converted_license,
+                                "text": {
+                                    "contentType": "text/plain",
+                                    "content": extractedText
+                                    }
+                            }
+                        }
+                        license_json.append(license_data)
+                        break
+                except FileNotFoundError:
+                    pass
+            license_json.append({"expression" : license_expression})
+        return license_json 
+    return None
+
