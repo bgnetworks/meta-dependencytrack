@@ -1,6 +1,6 @@
 # meta-dependencytrack
 
-`meta-dependencytrack` is a [Yocto](https://www.yoctoproject.org/) meta-layer which produces a [CycloneDX](https://cyclonedx.org/) Software Bill of Materials (aka [SBOM](https://www.ntia.gov/SBOM)) from your root filesystem and then uploads it to a [Dependency-Track](https://dependencytrack.org/) server against the project of your choice.
+`meta-dependencytrack` is a [Yocto](https://www.yoctoproject.org/) meta-layer which produces a [CycloneDX](https://cyclonedx.org/) Software Bill of Materials (aka [SBOM](https://www.ntia.gov/SBOM)) from your root filesystem, as well as a Vulnerability Exploitability eXchange document (aka VEX) containing patched CVEs from component recipes and then uploads them to a [Dependency-Track](https://dependencytrack.org/) server against the project of your choice.
 
 ## Installation
 
@@ -42,6 +42,12 @@ INHERIT += "dependency-track"
 
 ![API Key](docs/api-key.png)
 
+### Add required API permissions
+
+For uploading the VEX document containing the Yocto patches, the additional `VULNERABILITY_ANALYSIS` permission is required.
+
+![API_PERMISSIONS](docs/api-permissions.png)
+
 ## Building and Uploading
 
-Once everything is configured simply build your image as you normally would. The final CycloneDX SBOM is saved as `tmp/deploy/dependency-track/bom.json` and, after buiding is complete, you should be able to simply refresh the project in Dependency Track to see the results of the scan.
+Once everything is configured simply build your image as you normally would. The final CycloneDX SBOM and VEX are saved as `tmp/deploy/dependency-track/bom.json` and `tmp/deploy/dependency-track/bom.json` respectively and, after building is complete, you should be able to simply refresh the project in Dependency Track to see the results of the scan.
